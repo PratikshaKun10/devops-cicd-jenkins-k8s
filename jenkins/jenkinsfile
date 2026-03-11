@@ -1,0 +1,26 @@
+pipeline {
+    agent any
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git 'https://github.com/PratikshaKun10/devops-cicd-jenkins-k8s.git'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t pratikshakundalwal123/webapp ./app'
+            }
+        }
+        stage('Push Image') {
+            steps {
+                sh 'docker push pratikshakundalwal123/webapp'
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh 'kubectl apply -f k8s/deployment.yaml'
+                sh 'kubectl apply -f k8s/service.yaml'
+            }
+        }
+    }
+}

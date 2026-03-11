@@ -1,11 +1,6 @@
-# Terraform
+aws/
+awscliv2.zip
 .terraform/
 *.tfstate
 *.tfstate.*
-
-# Binaries
-awscliv2.zip
 minikube-linux-amd64
-
-# Logs
-*.log

@@ -2,51 +2,53 @@ provider "aws" {
   region = var.region
 }
 
-# Create security group
-resource "aws_security_group" "jenkins_sg" {
-  name = "jenkins-security-group"
+data "aws_availability_zones" "available" {}
 
-  ingress {
-    description = "SSH Access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.0.0"
+
+  name = "eks-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs             = slice(data.aws_availability_zones.available.names, 0, 2)
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.3.0/24", "10.0.4.0/24"]
+
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
+
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = 1
   }
 
-  ingress {
-    description = "Jenkins UI"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Kubernetes NodePort"
-    from_port   = 30000
-    to_port     = 32767
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = 1
   }
 }
 
-# Use existing SSH key
-resource "aws_instance" "jenkins_server" {
-  ami           = "ami-0f5ee92e2d63afc18"
-  instance_type = "t3.medium"
-  key_name      = "aws"   # name of key pair in AWS
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "19.21.0"
 
-  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+  cluster_name    = var.cluster_name
+  cluster_version = "1.31"
+
+  vpc_id                         = module.vpc.vpc_id
+  subnet_ids                     = module.vpc.private_subnets
+  cluster_endpoint_public_access = true
+
+  eks_managed_node_groups = {
+    worker-nodes = {
+      instance_types = ["t3.medium"]
+      min_size       = 1
+      max_size       = 3
+      desired_size   = 2
+    }
+  }
 
   tags = {
-    Name = "jenkins-devops-server"
+    Environment = "devops-cicd"
   }
 }

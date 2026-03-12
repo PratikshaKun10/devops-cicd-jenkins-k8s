@@ -1,26 +1,103 @@
 pipeline {
     agent any
+
+    environment {
+        AWS_REGION        = 'ap-south-1'
+        AWS_ACCOUNT_ID    = '697629626862'
+        ECR_REPO          = 'webapp'
+        IMAGE_TAG         = "${BUILD_NUMBER}"
+        ECR_REGISTRY      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        FULL_IMAGE_NAME   = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
+        EKS_CLUSTER_NAME  = 'devops-eks-cluster'
+    }
+
     stages {
-        stage('Clone Repo') {
+
+        stage('Checkout Code') {
             steps {
-                git 'https://github.com/PratikshaKun10/devops-cicd-jenkins-k8s.git'
+                echo '📥 Cloning repository...'
+                checkout scm
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t pratikshakundalwal123/webapp ./app'
+                echo '🐳 Building Docker image...'
+                sh """
+                    docker build -t ${ECR_REPO}:${IMAGE_TAG} ./app
+                    docker tag ${ECR_REPO}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
+                """
             }
         }
-        stage('Push Image') {
+
+        stage('Push to ECR') {
             steps {
-                sh 'docker push pratikshakundalwal123/webapp'
+                echo '📤 Pushing image to ECR...'
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS \
+                    --password-stdin ${ECR_REGISTRY}
+
+                    docker push ${FULL_IMAGE_NAME}
+                """
             }
         }
-        stage('Deploy to Kubernetes') {
+
+        stage('Update K8s Manifest') {
             steps {
-                sh 'kubectl apply -f k8s/deployment.yaml'
-                sh 'kubectl apply -f k8s/service.yaml'
+                echo '📝 Updating deployment image tag...'
+                sh """
+                    sed -i 's|image:.*|image: ${FULL_IMAGE_NAME}|g' k8s/deployment.yaml
+                    cat k8s/deployment.yaml
+                """
             }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                echo '🚀 Deploying to EKS...'
+                sh """
+                    aws eks update-kubeconfig \
+                        --region ${AWS_REGION} \
+                        --name ${EKS_CLUSTER_NAME}
+
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+
+                    kubectl rollout status deployment/webapp-deployment
+                """
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo '✅ Verifying deployment...'
+                sh """
+                    kubectl get pods
+                    kubectl get svc webapp-service
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Pipeline completed successfully! App is deployed.'
+            sh """
+                echo "App URL:"
+                kubectl get svc webapp-service \
+                    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+            """
+        }
+        failure {
+            echo '❌ Pipeline failed! Check logs above.'
+        }
+        always {
+            echo '🧹 Cleaning up local Docker images...'
+            sh """
+                docker rmi ${FULL_IMAGE_NAME} || true
+                docker rmi ${ECR_REPO}:${IMAGE_TAG} || true
+            """
         }
     }
 }

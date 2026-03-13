@@ -8,7 +8,7 @@
 
 ---
 
-## 🏗️ Project Structure
+##  Project Structure
 
 ```
 devops-cicd-jenkins-k8s/
@@ -31,7 +31,7 @@ devops-cicd-jenkins-k8s/
 
 ---
 
-## 🛠️ Prerequisites
+##  Prerequisites
 
 - AWS Account with IAM credentials
 - Terraform >= 1.3.0
@@ -43,7 +43,7 @@ devops-cicd-jenkins-k8s/
 
 ---
 
-## 📋 Complete Setup Guide
+##  Complete Setup Guide
 
 ---
 
@@ -215,7 +215,7 @@ terraform plan
 terraform apply --auto-approve
 ```
 
-> ⏳ EKS cluster creation takes 15-20 minutes.
+>  EKS cluster creation takes 15-20 minutes.
 
 Connect kubectl to EKS:
 ```bash
@@ -479,7 +479,7 @@ http://<EXTERNAL-IP>.ap-south-1.elb.amazonaws.com
 
 ---
 
-## 🧹 Cleanup (To Avoid AWS Charges)
+##  Cleanup (To Avoid AWS Charges)
 
 ```bash
 # Delete k8s resources
@@ -500,7 +500,7 @@ aws ecr delete-repository \
 
 ---
 
-## 🏛️ Architecture
+##  Architecture
 
 ```
 Developer pushes code
@@ -526,12 +526,12 @@ AWS EKS (Kubernetes Cluster)
         ↓
 AWS Load Balancer
         ↓
-App Live on Internet 🌐
+App Live on Internet 
 ```
 
 ---
 
-## 🔧 Tech Stack
+##  Tech Stack
 
 | Tool       | Purpose                    |
 |------------|---------------------------|
@@ -548,7 +548,7 @@ App Live on Internet 🌐
 
 ---
 
-## 🐛 Common Issues and Fixes
+##  Common Issues and Fixes
 
 | Issue | Fix |
 |-------|-----|
